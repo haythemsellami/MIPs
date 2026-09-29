@@ -3,7 +3,7 @@ mip: 17
 title: PropAMM Routing Interface
 description: A minimal routing interface for proprietary AMMs.
 author: Category Labs
-discussions-to:
+discussions-to: https://forum.monad.xyz/t/mrc-17-propamm-routing-interface/
 status: Draft
 type: Standards Track
 category: MRC
