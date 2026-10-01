@@ -1,7 +1,7 @@
 ---
 mip: 17
-title: PropAMM Routing Interface
-description: A minimal routing interface for proprietary AMMs.
+title: PropAMM Router Interface
+description: Minimal routing interface for proprietary AMMs
 author: Category Labs
 discussions-to: https://forum.monad.xyz/t/mrc-17-propamm-routing-interface/
 status: Draft
@@ -18,14 +18,14 @@ The standard defines functions that are mainly used by onchain aggregators. The 
 
 ## Motivation
 
-PropAMMs derive prices following different mechanisms: from venue-specific logic, oracle updates, offchain market-making systems, signed price commitments, inventory constraints, or other custom mechanisms rather than a pre defined onchain curve.
+PropAMMs derive prices following different mechanisms: from venue-specific logic, oracle updates, offchain market-making systems, signed price commitments, inventory constraints, or other custom mechanisms rather than a pre-defined onchain curve.
 
-This flexibility creates fragmentation for routers and on-chain aggregators as existing venues expose different interfaces. Without a common interface, every router must implement and maintain an integration code specific to a single propAMM.
+This flexibility creates fragmentation for routers and onchain aggregators as existing venues expose different interfaces. Without a common interface, every router must implement and maintain an integration code specific to a single propAMM.
 
 Common integration frictions include:
 
 1. **Non-standard quote functions:** propAMMs expose different input conventions, return values, and some of them do state mutation during asset quoting.
-2. **Non-standard swap functions:** swap interfaces vary in direction encoding, recipient semantics, slippage checks, callbacks...etc
+2. **Non-standard swap functions:** swap interfaces vary in direction encoding, recipient semantics, slippage checks, and callbacks, etc.
 3. **Inconsistent token transfer:** some venues transfer the input token from addresses via allowance, while others expect tokens to be explicitly transferred before swap execution.
 4. **Requirement of supplementary data for swap execution:** certain propAMMs require signed prices or quote identifiers to execute a swap.
 5. **Different deployment architectures:** propAMMs may use per-pair contracts, others follow the singleton design.
@@ -41,7 +41,7 @@ The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL 
 Every compatible propAMM contract MUST implement the following interface:
 
 ```solidity
-/// @title Proprietary AMM Routing Interface
+/// @title Proprietary AMM Router Interface
 /// @dev A contract may serve one or more markets.
 ///      `tokenIn` and `tokenOut` specify the requested assets and direction.
 interface IPropAMMRouter {
@@ -67,7 +67,7 @@ interface IPropAMMRouter {
     /// @param amountIn The exact input amount in base units of `tokenIn`.
     /// @param quoteData Opaque venue specific quote input, may be empty.
     /// @return amountOut The expected output amount in base units of `tokenOut`.
-    /// @return swapData Opaque venue specific data to supply to `swap`, may be empty.
+    /// @return swapData Opaque venue specific data to supply to `swap()`, may be empty.
     /// @dev This function is intentionally non-view. Routers that integrate
     ///      with `IPropAMMRouter` must execute it in a call frame whose state
     ///      changes are reverted.
@@ -107,7 +107,7 @@ interface IPropAMMRouter {
 
 A compatible `IPropAMMRouter` MAY be a native propAMM contract or an adapter and MAY represent one or more markets. `tokenIn` and `tokenOut` specify the market’s assets and swap direction.
 
-Market discovery is outside the scope of this MRC. Implementations MAY expose additional getters, but routers MUST NOT require such extensions to use the interface defined here. Discovery MAY be standardized separately.
+Market discovery is outside the scope of this MRC. Implementations MAY expose additional getters, but routers SHALL NOT require such extensions to use the interface defined here. Discovery MAY be standardized separately.
 
 ### Caller and Taker Semantics
 
@@ -119,11 +119,11 @@ Given that the interface does not include a separate taker input, A propAMM that
 
 The `getAmountOut()` returns the expected output for an exact input swap and any opaque data required to execute that quote.
 
-If `swap` is called by the same `msg.sender`, with the `tokenIn`, `tokenOut` and `amountIn`, using the returned `swapData`, before its expiry and without relevant venue state changes, the MRC-17 compatible contract MUST be capable of delivering at least the quoted `amountOut`.
+If `swap()` is called by the same `msg.sender`, with the `tokenIn`, `tokenOut` and `amountIn`, using the returned `swapData`, before its expiry and without relevant venue state changes, the MRC-17 compatible contract MUST be capable of delivering at least the quoted `amountOut`.
 
 `getAmountOut()` is intentionally non-view and is not required to be called using the `STATICCALL` opcode. An MRC-17-compatible propAMM MAY apply state changes before returning a quote, including executing a swap that deliberately reverts and bubble up its result through revert data.
 
-If the `swapData` returned by `getAmountOut()` is relied on during `swap` execution, then it MUST be valid when `swap` is invoked as long as it’s not expiring and not impacted by state changes.
+If the `swapData` returned by `getAmountOut()` is relied on during `swap()` execution, then it MUST be valid when `swap()` is invoked as long as it’s not expiring and not impacted by state changes.
 
 ### Swap Execution
 
@@ -136,9 +136,9 @@ Requirements:
 - `to` MUST NOT be the zero address.
 - `deadline` MUST be enforced by the conforming contract. If `block.timestamp > deadline`, the call MUST revert.
 - `swapData` is opaque to the router and MAY contain venue specific execution data.
-- Before calling `swap`, `msg.sender` MUST grant the conforming contract an ERC-20 allowance of at least `amountIn` for the input token.
-- During `swap`, the conforming contract MUST transfer exactly `amountIn` of the input token from `msg.sender` using ERC-20 `transferFrom` semantics, with the contract acting as the approved spender.
-- The conforming contract MUST NOT require input tokens to be transferred before `swap` is called.
+- Before calling `swap()`, `msg.sender` MUST grant the conforming contract an ERC-20 allowance of at least `amountIn` for the input token.
+- During `swap()`, the conforming contract MUST transfer exactly `amountIn` of the input token from `msg.sender` using ERC-20 `transferFrom` semantics, with the contract acting as the approved spender.
+- The conforming contract MUST NOT require input tokens to be transferred before `swap()` is called.
 - The conforming contract MUST NOT use a pre existing token balance as a substitute for transferring `amountIn` from `msg.sender` for the current invocation.
 - The actual `amountOut` MUST be at least `amountOutMin`, otherwise the conforming contract MUST revert.
 
@@ -158,13 +158,13 @@ Implementations MAY expose exact output methods outside this MRC.
 
 ### Events
 
-A compatible contract SHOULD emit the `PropAMMSwap` event after each successful `swap`.
+A compatible contract SHOULD emit the `PropAMMSwap` event after each successful `swap()`.
 
 In `PropAMMSwap`:
 
-- `sender` MUST equal the `msg.sender` that invoked `swap`
-- `to` MUST equal the output recipient passed to `swap`
-- `tokenIn` and `tokenOut` MUST equal the corresponding arguments passed to `swap` and identify the actual input and output assets.
+- `sender` MUST equal the `msg.sender` that invoked `swap()`
+- `to` MUST equal the output recipient passed to `swap()`
+- `tokenIn` and `tokenOut` MUST equal the corresponding arguments passed to `swap()` and identify the actual input and output assets.
 - `amountIn` MUST equal the exact input amount transferred from `sender`
 - `amountOut` MUST equal the actual output amount credited to `to`
 
